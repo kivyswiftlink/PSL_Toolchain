@@ -65,7 +65,8 @@ class KivyExtra(CythonSwiftPackage):
     
     
     site_package_targets = [
-        
+        "kiwisolver.cpython-311-darwin.so", "kiwisolver.cpython-311-darwin.so.libs",
+        "ffpyplayer", "matplotlib"
     ]
 
 
