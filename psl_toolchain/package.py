@@ -104,8 +104,13 @@ class SwiftPackage:
         self.copy_files_to_package()
         self.export_package()
         self.post_package()
-        
-        
+    
+    def pre_zip_dists(self):
+        pass
+    
+    def pre_zip_xc_frameworks(self):
+        pass
+    
     def pre_package(self):
         pass
     
@@ -260,13 +265,14 @@ class SwiftPackage:
         last_path = getcwd()
         xc_export_root = self.swift_package_xcframeworks
         ensure_dir(xc_export_root)
+        self.pre_zip_xcframeworks()
         for xc in self.get_all_xcframeworks():
             chdir(dirname(xc))
             xc_basename = basename(xc)
             fn = splitext(xc_basename)[0]
             zip_name = f"{fn}.zip"
             zipfile = join(xc_export_root, f"{fn}.zip")
-            Command("/usr/bin/zip")("-r", zipfile, xc_basename)
+            sh.zip("-r", zipfile, xc_basename)
         chdir(last_path)
         
     

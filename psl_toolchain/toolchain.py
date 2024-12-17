@@ -192,7 +192,7 @@ class PSLToolchainCL(ToolchainCL):
             generate_packages(
                 [
                    "pythoncore" ,"kivycore", "sdl2core", "imagecore",
-                   "kivynumpy", "kivyextra", "freetype"
+                   "kivynumpy", "freetype"
                 ],
                 ctx
             )
