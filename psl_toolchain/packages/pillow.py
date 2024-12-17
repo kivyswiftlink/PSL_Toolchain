@@ -1,53 +1,46 @@
 from psl_toolchain.targets import SwiftTarget
-from psl_toolchain.package import SwiftPackage
+from psl_toolchain.package import SwiftPackage, CythonSwiftPackage
 
 from kivy_ios.toolchain import Recipe
-from kivy_ios.recipes.kivy import KivyRecipe
+from kivy_ios.recipes import pillow
 
 PackageDependency = SwiftTarget.PackageDependency
 
-recipes: list[Recipe] = [
-    KivyRecipe()
-]
+class PillowTarget(SwiftTarget):
+    
+    name = "Pillow"
+    
+    dependencies = [
+        PackageDependency("libjpeg", "ImageCore"),
+    ]
+    
+    recipes = [
+        pillow.recipe
+    ]
 
 
-dependencies: list[PackageDependency | str] = [
-    PackageDependency("SDL2Core", "SDL2Core"),
-    "libSDL2_mixer",
-    "libSDL2_ttf",
-    "libSDL2_image",
-    "libSDL2",
-]
-
-
-
-class SDL2Core(SwiftPackage):
+class Pillow(CythonSwiftPackage):
     
     include_pythoncore = True
     include_pythonswiftlink = True
     
-    @property
-    def products(self) -> list[SwiftPackage.Product]: 
-        return [
-            SwiftPackage.Product("SDL2Core", ["SDL2Core"]),
+    products = [
+            SwiftPackage.Product("Pillow", ["Pillow"]),
         ]
-    
-    @property
-    def _targets(self) -> list[SwiftTarget]:
-        return [
-            SwiftTarget(
-                "SDL2Core",
-                recipes,
-                dependencies
-            )
-        ]
+
+    targets = [
+        PillowTarget()
+    ]
     
     @property
     def dependencies(self) -> list[SwiftPackage.Dependency]:
         return [
             SwiftPackage.Dependency("https://github.com/KivySwiftLink/ImageCore", version=self.version)
         ]
+    
+    site_package_targets = [
+        "PIL", f"pillow-{pillow.recipe.version}-py3.11.egg-info"
+    ]
 
 
-
-package = SDL2Core()
+package = Pillow()

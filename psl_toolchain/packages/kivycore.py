@@ -1,5 +1,5 @@
-from targets import SwiftTarget
-from package import CythonSwiftPackage, SwiftPackage
+from psl_toolchain.targets import SwiftTarget
+from psl_toolchain.package import CythonSwiftPackage, SwiftPackage
 
 
 from kivy_ios.toolchain import Recipe
@@ -24,11 +24,13 @@ class KivyCore(CythonSwiftPackage):
     include_pythoncore = True
     include_pythonswiftlink = True
     
-    products: list[SwiftPackage.Product] = [
+    repo_url = "https://github.com/kivyswiftlink/KivyCore"
+    
+    products = [
         SwiftPackage.Product("KivyCore", ["KivyCore"])
     ]
     
-    _targets = [
+    targets = [
         KivyTarget(),
     ]
     
@@ -37,7 +39,7 @@ class KivyCore(CythonSwiftPackage):
     ]
 
     site_package_targets = [
-        "kivy", "Kivy-2.3.0-py3.11.egg-info"
+        "kivy", f"Kivy-{KivyRecipe.version}-py3.11.egg-info"
     ]
 
 package = KivyCore()

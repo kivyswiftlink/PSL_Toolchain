@@ -23,22 +23,22 @@ import urllib.request
 import hashlib
 
 
-from kivy_ios.toolchain import Context, ToolchainCL, GenericPlatform, logger
+from kivy_ios.toolchain import Context, ToolchainCL, GenericPlatform, logger, JsonStore
 
 from kivy_ios.toolchain import Recipe, Graph, JsonStore
 from kivy_ios.toolchain import CythonRecipe as _CythonRecipe
 from kivy_ios.toolchain import build_recipes
 
 
-from targets import SwiftTarget
-from context import PackageContext
-from package import SwiftPackage
+from .targets import SwiftTarget
+from .context import PackageContext
+from .package import SwiftPackage
 
 
 
 
 def generate_packages(packages: list[str], ctx: PackageContext):
-    print("generate_packages", packages)
+    logger.info(f"generate_packages: {packages}")
     #ctx.wanted_recipes = names[:]
     packages_to_load = packages
     packages_loaded = []
@@ -55,9 +55,18 @@ def generate_packages(packages: list[str], ctx: PackageContext):
             sys.exit(1)
         
         to_run.append(package)
-            
+    
+    recipes_to_build = []
     for package in to_run:
         package.init_with_ctx(ctx)
+        
+        for t in package.targets:
+            for recipe in t.recipes:
+                recipes_to_build.append(recipe.name)
+    
+    build_recipes(recipes_to_build, ctx)
+        
+    for package in to_run:
         package.execute()
         
     
@@ -179,8 +188,16 @@ class PSLToolchainCL(ToolchainCL):
                             help="Path to custom package")
         args = parser.parse_args(sys.argv[2:])
         
-        
-        generate_packages(args.package, ctx)
+        if args.package == ["all"]:
+            generate_packages(
+                [
+                   "pythoncore" ,"kivycore", "sdl2core", "imagecore",
+                   "kivynumpy", "kivyextra", "freetype"
+                ],
+                ctx
+            )
+        else:
+            generate_packages(args.package, ctx)
         
 
 def main():

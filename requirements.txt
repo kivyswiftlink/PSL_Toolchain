@@ -1,2 +1,2 @@
-kivy-ios @ https://github.com/kivy/kivy-ios/archive/refs/heads/master.zip
-swiftpackagewriter @ https://github.com/PythonSwiftLink/SwiftPackageWriter/archive/refs/heads/master.zip
+kivy-ios @ git+https://github.com/kivy/kivy-ios@master
+swiftpackagewriter @ git+https://github.com/PythonSwiftLink/SwiftPackageWriter@master

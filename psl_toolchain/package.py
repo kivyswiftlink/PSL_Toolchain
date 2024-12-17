@@ -5,15 +5,19 @@ import shutil
 import json
 import importlib
 import sys
-from context import PackageContext
-from targets import BinaryTarget, SwiftTarget
+from .context import PackageContext
+from .targets import BinaryTarget, SwiftTarget
+from .utils import ChangeDir, ensure_dir, cache_execution, zip_to_path
 from sh import Command
 from typing import Generator
-from kivy_ios.toolchain import ensure_dir
 import subprocess
+from datetime import datetime
 
 def copy_package_content(cls: "SwiftPackage"):
     print(cls.get_binary_targets)
+
+
+
 
 class SwiftPackage:
     
@@ -70,40 +74,97 @@ class SwiftPackage:
             
             
     ctx: PackageContext | None
-    products: list[Product]
-    dependencies: list[Dependency]
-    _targets: list[SwiftTarget]
+    products: list[Product] = []
+    dependencies: list[Dependency] = []
+    targets: list[SwiftTarget]
     version: str = "311.0.0"
     
     include_pythoncore: bool = False
     include_pythonswiftlink: bool = False
     
+    only_include_binary_targets: bool = False
+    
+    repo_url: str | None = None
+    
+    @property
+    def name(self):
+        return self.__class__.__name__
+    
     def init_with_ctx(self, ctx: PackageContext):
         self.ctx = ctx
-        for target in self._targets:
+        for target in self.targets:
             for recipe in target.recipes:
                 recipe.init_with_ctx(ctx)
     
+    @cache_execution
     def execute(self):
         print(self.get_binary_targets)
+        ensure_dir(self.swift_package_dir)
+        self.pre_package()
         self.copy_files_to_package()
-        
-        with open(join(self.swift_package_dir, "package.json"), "w") as fp:
-            json.dump(self.dump, fp)
-            
-        #spw = shutil.which("SwiftPackageWriter")
-
-        package_string = str(sh.SwiftPackageWriter("create", join(self.swift_package_dir, "package.json")))
-        with open(join(self.swift_package_dir, "Package.swift"), "w") as fp:
-            fp.write(package_string)
+        self.export_package()
+        self.post_package()
         
         
+    def pre_package(self):
+        pass
+    
+    def post_package(self):
+        pass
+        
+    def generate_package_swift(self) -> str:
+        return str(sh.SwiftPackageWriter("create", join(self.swift_package_dir, "package.json")))
+    
+    def write_package_swift(self, dir: str):
+        with open(join(dir, "Package.swift"), "w") as fp:
+            fp.write(self.generate_package_swift())
+    
     def copy_files_to_package(self):
         self.zip_xc_frameworks_to_export()
+        self.zip_dist_files_to_export()
+        with open(join(self.swift_package_dir, "package.json"), "w") as fp:
+            json.dump(self.dump, fp)
+        
+    
+    def export_package(self):
+        export_dir = join(self.swift_package_dir, "export")
+        ensure_dir(export_dir)
+        repo_url = self.repo_url
+        if repo_url:
+            self.create_from_repo(repo_url, export_dir)
+        else:
+            self.create_new(export_dir)
+        
+    
+    def create_new(self, working_dir: str):
+        root = join(working_dir, self.__class__.__name__)
+        targets = list(self.targets)
+        targets_count = len(targets)
+        if targets_count > 0:
+            sources = join(root, "Sources")
+            for target in targets:
+                targ_folder = join(sources, target.name)
+                ensure_dir(targ_folder)
+                with open(join(targ_folder, f"{target.name}.swift"), "w") as fp:
+                    fp.write("")
+            
+        self.write_package_swift(root)        
+        
+        
+    def create_from_repo(self, url: str, working_dir: str):
+        with ChangeDir(working_dir):
+            self.clone_url(url)
+            self.write_package_swift(basename(url))
+    
+    @cache_execution
+    def clone_url(self, url: str, **kwargs):
+        sh.git("clone", url)
     
     @property
-    def targets(self) -> list[SwiftTarget | BinaryTarget]:
-        output: list[SwiftTarget | BinaryTarget] = list(self._targets)
+    def all_targets(self) -> list[SwiftTarget | BinaryTarget]:
+        output: list[SwiftTarget | BinaryTarget] = []
+        if not self.only_include_binary_targets:
+            output.extend(self.targets)
         for src in self.get_binary_targets:
             output.append(
                 BinaryTarget(
@@ -117,20 +178,15 @@ class SwiftPackage:
         return output
     
     def get_all_xcframeworks(self):
-        #xcframeworks: list[str] = []
-        
-        for target in self._targets:
+        for target in self.targets:
             for xc in target.xcframeworks:
                 yield xc
-                #xcframeworks.append(xc)
-        #return xcframeworks
     
     @property
     def get_binary_targets(self) -> list[str]:
         bin_targets: list[str] = []
         root = self.swift_package_xcframeworks
         for xc in self.get_all_xcframeworks():
-            #root = dirname(xc)
             fn, ext = splitext(basename(xc))
             bin_targets.append(join(root, f"{fn}.zip"))
         
@@ -167,10 +223,39 @@ class SwiftPackage:
             "name": self.__class__.__name__,
             "products": [p.dump for p in self.products],
             "dependencies": [dep.dump for dep in self.get_dependencies],
-            "targets": [target.dump for target in self.targets],
+            "targets": [target.dump for target in self.all_targets],
             "version": self.version
         }
+    
+    def get_all_targets_recipes(self):
+        for target in self.targets:
+            for recipe in target.recipes:
+                yield recipe
+    
+    @cache_execution
+    def zip_dist_files_to_export(self):
+        root = join(self.swift_package_dir, "dist_files")
+        has_dist_files = False
+        for plat in self.ctx.supported_platforms:
+            plat_root = join(root, plat.name)
+            for recipe in self.get_all_targets_recipes():
+                recipe_root = join(plat_root, recipe.name)
+                ensure_dir(plat_root)
+                #with ChangeDir(plat_root):
+                for lib in recipe._get_all_libraries():
+                    has_dist_files = True
+                    library_fn = basename(lib)
+                    library_name = library_fn.split(".a")[0]
+                    static_fn = join(self.ctx.dist_dir, "lib", plat.sdk, library_fn)
+                    try:
+                        shutil.copy(static_fn, join(plat_root))
+                    except: pass
+        if has_dist_files:
+            with ChangeDir(self.swift_package_dir):
+                zip_to_path("dist_files", "./")
         
+        
+    @cache_execution
     def zip_xc_frameworks_to_export(self):
         last_path = getcwd()
         xc_export_root = self.swift_package_xcframeworks
@@ -197,7 +282,7 @@ class SwiftPackage:
         else:
             version = None
 
-        mod = importlib.import_module(f"packages.{name}")
+        mod = importlib.import_module(f"psl_toolchain.packages.{name}")
         package: SwiftPackage = mod.package
         #recipe.recipe_dir = join(ctx.root_dir, "packages", name)
 
@@ -207,6 +292,21 @@ class SwiftPackage:
             package.version = version
 
         return package
+    
+    def update_state(self, key, value):
+        """
+        Update entry in state database. This is usually done in the
+        @cache_execution decorator to log an action and its time of occurrence,
+        but it needs to be done manually in recipes.
+        """
+        key_time = "{}.at".format(key)
+        self.ctx.state[key] = value
+        now_str = str(datetime.utcnow())
+        self.ctx.state[key_time] = now_str
+        print("New State: {} at {}".format(key, now_str))
+
+PackageDependency = SwiftPackage.Dependency
+PackageProduct = SwiftPackage.Product
     
 class PythonSwiftPackage(SwiftPackage):
     site_package_targets: list[str]
@@ -219,6 +319,7 @@ class PythonSwiftPackage(SwiftPackage):
         site_packages_dir = self.ctx.site_packages_root
         target_root = self.swift_package_site
         ensure_dir(site_packages_dir)
+        
         for target in self.site_package_targets:
             src = join(site_packages_dir, target)
             if exists(src):
@@ -227,7 +328,11 @@ class PythonSwiftPackage(SwiftPackage):
                 else:
                     shutil.copy(src, target_root)
                     
-
+    def zip_site_packages(self):
+        with ChangeDir(self.swift_package):
+            sh.zip("-r", "site-packages", "site-packages.zip")
+            
+    
     
     @property
     def dump(self) -> dict:

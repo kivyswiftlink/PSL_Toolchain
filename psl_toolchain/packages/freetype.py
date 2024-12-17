@@ -6,36 +6,29 @@ from kivy_ios.recipes import libjpeg, libpng
 
 PackageDependency = SwiftTarget.PackageDependency
 
-class LibJpeg(SwiftTarget):
-    
-    name = "libjpeg"
-    
-    recipes = [libjpeg.recipe]
 
-class LibPng(SwiftTarget):
+class FreeTypeTarget(SwiftTarget):
     
-    name = "libpng"
+    name = "freetype"
     
     recipes = [libpng.recipe]
 
 
-class ImageCore(SwiftPackage):
+class FreeType(SwiftPackage):
     
     only_include_binary_targets = True
     
-    repo_url = "https://github.com/kivyswiftlink/ImageCore"
+    repo_url = "https://github.com/kivyswiftlink/FreeType"
     
     products = [
-        SwiftPackage.Product("libpng", ["libpng16"]),
-        SwiftPackage.Product("libjpeg", ["libjpeg"])
+        SwiftPackage.Product("freetype", ["libfreetype"]),
     ]
     
     targets = [
-        LibJpeg(),
-        LibPng()
+        FreeTypeTarget()
     ]
     
 
 
 
-package = ImageCore()
+package = FreeType()

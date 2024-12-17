@@ -14,7 +14,7 @@ class PackageContext(Context):
     
     def __init__(self):
         super().__init__()
-        
+        self.packages_state = JsonStore(join(self.swift_packages, "packages_state.db"))
         self.supported_platforms = [
             iPhoneOSARM64Platform(self),
             iPhoneSimulatorARM64Platform(self),

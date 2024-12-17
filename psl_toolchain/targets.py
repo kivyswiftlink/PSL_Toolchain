@@ -1,7 +1,7 @@
-from recipe import _Recipe
+from .recipe import _Recipe
 import hashlib
 from os.path import join, dirname, realpath, exists, isdir, basename, splitext
-
+from typing import TypeAlias
 
 class SwiftTarget:
     
@@ -19,6 +19,7 @@ class SwiftTarget:
                 "name": self.name,
                 "package": self.package
             }
+            
     class LinkerSetting:
         kind: str
         name: str
@@ -33,11 +34,26 @@ class SwiftTarget:
                 "kind": self.kind,
                 "name": self.name
             }
+    class Resource:
+        kind: str
+        path: str
+        
+        def __init__(self, path: str, kind: str = "copy"):
+            self.kind = kind
+            self.path = path
+            
+        @property
+        def dump(self) -> dict:
+            return {
+                "kind": self.kind,
+                "path": self.path
+            }
             
             
     name: str
-    recipes: list[_Recipe]
-    dependencies: list[PackageDependency | str ]
+    recipes: list[_Recipe] = []
+    dependencies: list[PackageDependency | str ] = []
+    resources: list[Resource] = []
     
     @property
     def linker_settings(self) -> list[LinkerSetting]:
@@ -73,6 +89,12 @@ class SwiftTarget:
                         "type": "dependency",
                         "data": dep.dump
                     })
+        for xc in self.xcframeworks:
+            fn, ext = splitext(basename(xc))
+            deps.append({
+                        "type": "string",
+                        "data": fn
+                    })
         return deps
                     
         
@@ -84,11 +106,13 @@ class SwiftTarget:
             "data": {
                 "name": self.name,
                 "dependencies": self.dump_dep(),
+                "resources": [res.dump for res in self.resources],
                 "linker_settings": [linker.dump for linker in self.linker_settings]
             }
         }
-    
-    
+
+TargetDependency: TypeAlias = SwiftTarget.PackageDependency    
+
 class BinaryTarget:
     name: str
     file: str

@@ -15,8 +15,8 @@ setup(
     name="psl_toolchain",
     packages=["psl_toolchain", "psl_toolchain.packages"],
     #scripts=["bin/SwiftPackageWriter",],
-    # entry_points={
-    #     "scripts": ["bin/SwiftPackageWriter"]
-    # },
+    entry_points={
+        "console_scripts": ["psl_toolchain=psl_toolchain.toolchain:main"]
+    },
     install_requires=required
 )
