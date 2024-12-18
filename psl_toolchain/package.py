@@ -265,7 +265,7 @@ class SwiftPackage:
         last_path = getcwd()
         xc_export_root = self.swift_package_xcframeworks
         ensure_dir(xc_export_root)
-        self.pre_zip_xcframeworks()
+        self.pre_zip_xc_frameworks()
         for xc in self.get_all_xcframeworks():
             chdir(dirname(xc))
             xc_basename = basename(xc)
@@ -320,6 +320,7 @@ class PythonSwiftPackage(SwiftPackage):
     def copy_files_to_package(self):
         super().copy_files_to_package()
         self.copy_site_package_folder()
+        self.zip_site_packages()
 
     def copy_site_package_folder(self):
         site_packages_dir = self.ctx.site_packages_root
@@ -335,8 +336,9 @@ class PythonSwiftPackage(SwiftPackage):
                     shutil.copy(src, target_root)
                     
     def zip_site_packages(self):
-        with ChangeDir(self.swift_package):
-            sh.zip("-r", "site-packages", "site-packages.zip")
+        with ChangeDir(self.swift_package_dir):
+            #sh.zip("-r", "site-packages", "site-packages.zip")
+            zip_to_path("site-packages", "./")
             
     
     
