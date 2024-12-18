@@ -2,7 +2,7 @@ from psl_toolchain.targets import SwiftTarget, TargetDependency
 from psl_toolchain.package import SwiftPackage
 
 from kivy_ios.toolchain import Recipe
-from kivy_ios.recipes import libjpeg, libpng
+from kivy_ios.recipes import freetype, libpng
 
 PackageDependency = SwiftTarget.PackageDependency
 
@@ -11,7 +11,7 @@ class FreeTypeTarget(SwiftTarget):
     
     name = "freetype"
     
-    recipes = [libpng.recipe]
+    recipes = [freetype.recipe]
 
 
 class FreeType(SwiftPackage):
