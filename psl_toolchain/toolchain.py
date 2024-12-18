@@ -37,7 +37,8 @@ from .package import SwiftPackage
 
 
 
-def generate_packages(packages: list[str], ctx: PackageContext):
+def generate_packages(packages: list[str], ctx: PackageContext, **kw):
+    version: str | None = kw.pop("version", None)
     logger.info(f"generate_packages: {packages}")
     #ctx.wanted_recipes = names[:]
     packages_to_load = packages
@@ -67,6 +68,8 @@ def generate_packages(packages: list[str], ctx: PackageContext):
     build_recipes(recipes_to_build, ctx)
         
     for package in to_run:
+        if version:
+            package.version = version
         package.execute()
         
     
@@ -184,20 +187,23 @@ class PSLToolchainCL(ToolchainCL):
         parser.add_argument("package", nargs="+", help="Package to generate")
         parser.add_argument("--export", action="append",
                             help="export destination")
-        parser.add_argument("--add-custom-package", action="append", default=[],
-                            help="Path to custom package")
+        parser.add_argument("--version", default=None,
+                            help="set global version if package accepts its")
         args = parser.parse_args(sys.argv[2:])
-        
+        kw = {
+            "version": args.version
+        }
         if args.package == ["all"]:
             generate_packages(
                 [
                    "pythoncore" ,"kivycore", "sdl2core", "imagecore",
                    "kivynumpy", "freetype"
                 ],
-                ctx
+                ctx,
+                **kw
             )
         else:
-            generate_packages(args.package, ctx)
+            generate_packages(args.package, ctx, **kw)
         
 
 def main():
