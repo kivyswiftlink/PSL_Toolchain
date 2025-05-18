@@ -44,7 +44,7 @@ class PythonCore(SwiftPackage):
     
     targets = [
         PythonCoreTarget(),
-        PythonExtra(),
+        #PythonExtra(),
         PythonLibrary()
     ]
     
